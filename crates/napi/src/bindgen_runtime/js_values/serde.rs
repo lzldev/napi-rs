@@ -212,6 +212,6 @@ impl TypeName for Value {
   }
 
   fn value_type() -> ValueType {
-    ValueType::Object
+    ValueType::Unknown
   }
 }
