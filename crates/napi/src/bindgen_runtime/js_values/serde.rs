@@ -6,7 +6,7 @@ use crate::{
 
 #[cfg(feature = "napi6")]
 use super::BigInt;
-use super::{FromNapiValue, Object, ToNapiValue};
+use super::{FromNapiValue, Object, ToNapiValue, TypeName, ValidateNapiValue};
 
 impl ToNapiValue for Value {
   unsafe fn to_napi_value(env: sys::napi_env, val: Self) -> Result<sys::napi_value> {
@@ -171,5 +171,47 @@ impl FromNapiValue for Number {
     })?;
 
     Ok(n)
+  }
+}
+
+impl ValidateNapiValue for Value {
+  unsafe fn validate(
+    env: napi_sys::napi_env,
+    napi_val: napi_sys::napi_value,
+  ) -> Result<napi_sys::napi_value> {
+    let value_type = Self::value_type();
+    if value_type == ValueType::Unknown {
+      return Ok(std::ptr::null_mut());
+    }
+
+    let mut result = -1;
+    check_status!(
+      unsafe { sys::napi_typeof(env, napi_val, &mut result) },
+      "Failed to detect napi value type",
+    )?;
+
+    let received_type = ValueType::from(result);
+    if value_type == received_type {
+      Ok(std::ptr::null_mut())
+    } else {
+      Err(Error::new(
+        Status::InvalidArg,
+        std::format!(
+          "Expect value to be {}, but received {}",
+          value_type,
+          received_type
+        ),
+      ))
+    }
+  }
+}
+
+impl TypeName for Value {
+  fn type_name() -> &'static str {
+    "serde_value"
+  }
+
+  fn value_type() -> ValueType {
+    ValueType::Object
   }
 }
